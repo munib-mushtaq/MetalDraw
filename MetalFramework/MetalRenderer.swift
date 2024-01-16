@@ -1,52 +1,53 @@
 //
-//  ViewController.swift
+//  MetalRenderer.swift
 //  MetalFramework
 //
-//  Created by Arslan Raza on 15/01/2024.
+//  Created by Arslan Raza on 16/01/2024.
 //
 
-import UIKit
+import Foundation
 import MetalKit
 
-enum Color {
-    static let defaultColor = MTLClearColor(red: 0.0, green: 0.4, blue: 0.21, alpha: 1.0)
-}
-
-class ViewController: UIViewController {
-    var metalView: MTKView!
-    var device : MTLDevice!
-    var commandQueue: MTLCommandQueue!
+class MetalRenderer: NSObject {
+    //MARK: - Properties -
+    let device: MTLDevice
+    let commandQueue: MTLCommandQueue
     var pipelineState: MTLRenderPipelineState?
     var vertexBuffer: MTLBuffer?
+    var indexBuffer: MTLBuffer?
     
     var vertices: [Float] = [
-        0, 1, 0,
+        -1, 1, 0,
         -1, -1, 0,
-        1, -1, 0
+         1, -1, 0,
+         1, 1, 0,
     ]
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        let metalView = MTKView()
-        
-        metalView.translatesAutoresizingMaskIntoConstraints = false
-        metalView.frame.size.height = self.view.frame.height
-        metalView.frame.size.width = self.view.frame.width
-        metalView.device = MTLCreateSystemDefaultDevice()
-        device = metalView.device
-        metalView.clearColor = Color.defaultColor
-        commandQueue = device.makeCommandQueue()
-        self.metalView = metalView
-        metalView.delegate = self
-        self.view.addSubview(self.metalView)
+    var indices: [UInt16] =
+    [
+        0, 1, 2,
+        2, 3, 0,
+    ]
+    
+    
+    //MARK: - Init -
+    init(device: MTLDevice) {
+        self.device = device
+        commandQueue = device.makeCommandQueue()!
+        super.init()
         buildModel()
         buildPipeLineState()
     }
+    
     
     //MARK: - Methods -
     private func buildModel() {
         vertexBuffer = device.makeBuffer(bytes: vertices,
                                          length: vertices.count * MemoryLayout<Float>.size,
+                                         options: [])
+        
+        indexBuffer = device.makeBuffer(bytes: indices,
+                                         length: indices.count * MemoryLayout<UInt16 >.size,
                                          options: [])
     }
     
@@ -62,7 +63,7 @@ class ViewController: UIViewController {
         
         do {
             pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
-        } catch let error {
+        } catch let error as Error {
             NSLog("""
         Something happened:
         \(error)
@@ -71,15 +72,19 @@ class ViewController: UIViewController {
         """)
         }
     }
+    
 }
 
-extension ViewController: MTKViewDelegate {
+
+extension MetalRenderer: MTKViewDelegate {
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         
     }
+    
     func draw(in view: MTKView) {
         guard let drawable = view.currentDrawable,
               let pipelineState = pipelineState,
+              let indexBuffer = indexBuffer,
               let descriptor = view.currentRenderPassDescriptor else {
             return
         }
@@ -94,23 +99,14 @@ extension ViewController: MTKViewDelegate {
         
         commandEncoder.setRenderPipelineState(pipelineState)
         commandEncoder.setVertexBuffer(vertexBuffer,
-                                       offset: 0,
-                                       index: 0)
-        commandEncoder.drawPrimitives(type: .triangle,
-                                      vertexStart: 0,
-                                      vertexCount: vertices.count)
+                                        offset: 0,
+                                        index: 0)
+//        commandEncoder.drawPrimitives(type: .triangle,
+//                                       vertexStart: 0,
+//                                       vertexCount: vertices.count)
+        commandEncoder.drawIndexedPrimitives(type: .triangle, indexCount: indices.count, indexType: .uint16, indexBuffer: indexBuffer, indexBufferOffset: 0)
         commandEncoder.endEncoding()
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
-    //    func draw(in view: MTKView) {
-    //        guard let drawable = view.currentDrawable, let descriptor = view.currentRenderPassDescriptor else { return }
-    //        let commadBuffer = commadQueue.makeCommandBuffer()
-    //        let commadEncoder = commadBuffer?.makeRenderCommandEncoder(descriptor: descriptor)
-    //        commadEncoder?.endEncoding()
-    //        commadBuffer?.present(drawable)
-    //        commadBuffer?.commit()
-    //    }
-    
-    
 }
