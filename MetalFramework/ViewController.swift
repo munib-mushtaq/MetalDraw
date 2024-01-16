@@ -9,7 +9,7 @@ import UIKit
 import MetalKit
 
 enum Color {
-    static let defaultColor = MTLClearColor(red: 0.0, green: 0.4, blue: 0.21, alpha: 1.0)
+    static let defaultColor = MTLClearColor(red: 0.0, green: 0.4, blue: 0.41, alpha: 1.0)
 }
 
 class ViewController: UIViewController {
@@ -17,12 +17,23 @@ class ViewController: UIViewController {
     var device : MTLDevice!
     var commandQueue: MTLCommandQueue!
     var pipelineState: MTLRenderPipelineState?
-    var vertexBuffer: MTLBuffer?
+    var vertexBuffer: MTLBuffer!
+    var indexBuffer: MTLBuffer!
+    var constant = Constant()
+    var time: Float = 0
     
     var vertices: [Float] = [
-        0, 1, 0,
+        -1, 1, 0,
         -1, -1, 0,
-        1, -1, 0
+         1, -1, 0,
+         1, 1, 0,
+    ]
+    
+    var indices: [UInt16] =
+    [
+        0, 1, 2,
+        2, 3, 0,
+        3, 2, 0,
     ]
     
     override func viewDidLoad() {
@@ -47,6 +58,9 @@ class ViewController: UIViewController {
     private func buildModel() {
         vertexBuffer = device.makeBuffer(bytes: vertices,
                                          length: vertices.count * MemoryLayout<Float>.size,
+                                         options: [])
+        indexBuffer = device.makeBuffer(bytes: indices,
+                                         length: indices.count * MemoryLayout<UInt16 >.size,
                                          options: [])
     }
     
@@ -83,6 +97,7 @@ extension ViewController: MTKViewDelegate {
               let descriptor = view.currentRenderPassDescriptor else {
             return
         }
+        
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             NSLog("Could not instantiate Metal command buffer.")
             return
@@ -91,26 +106,25 @@ extension ViewController: MTKViewDelegate {
             NSLog("Could not instantiate Metal command encoder.")
             return
         }
-        
+        time += 2 / Float(view.preferredFramesPerSecond)
+        let animatedBy = abs(sin(time)/2 + 0.5)
+        constant.animatedBy = animatedBy
         commandEncoder.setRenderPipelineState(pipelineState)
         commandEncoder.setVertexBuffer(vertexBuffer,
                                        offset: 0,
                                        index: 0)
-        commandEncoder.drawPrimitives(type: .triangle,
+        
+        commandEncoder.setVertexBytes(&constant, length: MemoryLayout<Constant>.stride, index: 1)
+        commandEncoder.drawPrimitives(type: .triangleStrip,
                                       vertexStart: 0,
                                       vertexCount: vertices.count)
+                    commandEncoder.drawIndexedPrimitives(type: .triangle, indexCount: indices.count, indexType: .uint16, indexBuffer: indexBuffer, indexBufferOffset: 0)
         commandEncoder.endEncoding()
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
-    //    func draw(in view: MTKView) {
-    //        guard let drawable = view.currentDrawable, let descriptor = view.currentRenderPassDescriptor else { return }
-    //        let commadBuffer = commadQueue.makeCommandBuffer()
-    //        let commadEncoder = commadBuffer?.makeRenderCommandEncoder(descriptor: descriptor)
-    //        commadEncoder?.endEncoding()
-    //        commadBuffer?.present(drawable)
-    //        commadBuffer?.commit()
-    //    }
-    
-    
+}
+
+struct Constant {
+    var animatedBy: Float = 0.0
 }

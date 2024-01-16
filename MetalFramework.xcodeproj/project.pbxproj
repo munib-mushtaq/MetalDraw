@@ -13,7 +13,6 @@
 		A8A289A82B55608C00A12E0F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A8A289A62B55608C00A12E0F /* Main.storyboard */; };
 		A8A289AA2B55608E00A12E0F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A8A289A92B55608E00A12E0F /* Assets.xcassets */; };
 		A8A289AD2B55608E00A12E0F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A8A289AB2B55608E00A12E0F /* LaunchScreen.storyboard */; };
-		A8DE0B902B564B100007E8C8 /* MetalRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8DE0B8F2B564B100007E8C8 /* MetalRenderer.swift */; };
 		A8DE0B942B564EA50007E8C8 /* Shader.metal in Sources */ = {isa = PBXBuildFile; fileRef = A8DE0B932B564EA50007E8C8 /* Shader.metal */; };
 /* End PBXBuildFile section */
 
@@ -26,7 +25,6 @@
 		A8A289A92B55608E00A12E0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A8A289AC2B55608E00A12E0F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A8A289AE2B55608E00A12E0F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A8DE0B8F2B564B100007E8C8 /* MetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalRenderer.swift; sourceTree = "<group>"; };
 		A8DE0B932B564EA50007E8C8 /* Shader.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shader.metal; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -67,7 +65,6 @@
 				A8A289A92B55608E00A12E0F /* Assets.xcassets */,
 				A8A289AB2B55608E00A12E0F /* LaunchScreen.storyboard */,
 				A8A289AE2B55608E00A12E0F /* Info.plist */,
-				A8DE0B8F2B564B100007E8C8 /* MetalRenderer.swift */,
 				A8DE0B932B564EA50007E8C8 /* Shader.metal */,
 			);
 			path = MetalFramework;
@@ -144,7 +141,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A8DE0B902B564B100007E8C8 /* MetalRenderer.swift in Sources */,
 				A8A289A52B55608C00A12E0F /* ViewController.swift in Sources */,
 				A8A289A12B55608C00A12E0F /* AppDelegate.swift in Sources */,
 				A8DE0B942B564EA50007E8C8 /* Shader.metal in Sources */,
