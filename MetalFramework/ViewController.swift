@@ -6,125 +6,154 @@
 //
 
 import UIKit
+import QuartzCore
+import SceneKit
+import Metal
 import MetalKit
 
-enum Color {
-    static let defaultColor = MTLClearColor(red: 0.0, green: 0.4, blue: 0.41, alpha: 1.0)
-}
-
 class ViewController: UIViewController {
+
+    var scnView: SCNView!
+    var scnScene: SCNScene!
+    var cameraNode: SCNNode!
+    var dynamicNodes: [SCNNode] = []
+    var timer: Timer!
+
+    // Metal properties
+    var metalDevice: MTLDevice!
     var metalView: MTKView!
-    var device : MTLDevice!
-    var commandQueue: MTLCommandQueue!
-    var pipelineState: MTLRenderPipelineState?
-    var vertexBuffer: MTLBuffer!
-    var indexBuffer: MTLBuffer!
-    var constant = Constant()
-    var time: Float = 0
-    
-    var vertices: [Float] = [
-        -1, 1, 0,
-        -1, -1, 0,
-         1, -1, 0,
-         1, 1, 0,
-    ]
-    
-    var indices: [UInt16] =
-    [
-        0, 1, 2,
-        2, 3, 0,
-        3, 2, 0,
-    ]
-    
+    var metalCommandQueue: MTLCommandQueue!
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        let metalView = MTKView()
+
+        // Initialize Metal
+        setupMetal()
+
+        // Setup the Scene
+        setupScene()
+
+        // Setup the Camera
+        setupCamera()
+
+        // Add a Floor
+        setFloor()
+
+        // Add Gesture Recognizer for Tapping
+        addGestureRecognizer()
         
+        // Add a Dynamic Node (Cube)
+        addDynamicNode()
+    }
+
+    func setupMetal() {
+        // Check if Metal is supported
+        guard let metalDevice = MTLCreateSystemDefaultDevice() else {
+            fatalError("Metal is not supported on this device")
+        }
+        self.metalDevice = metalDevice
+        self.metalCommandQueue = metalDevice.makeCommandQueue()!
+
+        // Create and configure Metal view
+        metalView = MTKView(frame: view.bounds, device: metalDevice)
         metalView.translatesAutoresizingMaskIntoConstraints = false
-        metalView.frame.size.height = self.view.frame.height
-        metalView.frame.size.width = self.view.frame.width
-        metalView.device = MTLCreateSystemDefaultDevice()
-        device = metalView.device
-        metalView.clearColor = Color.defaultColor
-        commandQueue = device.makeCommandQueue()
-        self.metalView = metalView
+        view.addSubview(metalView)
+
+        // Set constraints for Metal view
+        NSLayoutConstraint.activate([
+            metalView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            metalView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            metalView.topAnchor.constraint(equalTo: view.topAnchor),
+            metalView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        // Set Metal view delegate
         metalView.delegate = self
-        self.view.addSubview(self.metalView)
-        buildModel()
-        buildPipeLineState()
     }
-    
-    //MARK: - Methods -
-    private func buildModel() {
-        vertexBuffer = device.makeBuffer(bytes: vertices,
-                                         length: vertices.count * MemoryLayout<Float>.size,
-                                         options: [])
-        indexBuffer = device.makeBuffer(bytes: indices,
-                                         length: indices.count * MemoryLayout<UInt16 >.size,
-                                         options: [])
+
+    func setupScene() {
+        scnView = SCNView(frame: view.bounds)
+        view.addSubview(scnView)
+
+        scnScene = SCNScene()
+        scnView.scene = scnScene
+        scnView.showsStatistics = true
+        scnView.allowsCameraControl = true
     }
-    
-    private func buildPipeLineState() {
-        let library = device.makeDefaultLibrary()
-        let vertexFunction = library?.makeFunction(name: "vertex_shader")
-        let fragmentFunction = library?.makeFunction(name: "fragment_shader")
-        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+
+    func setupCamera() {
+        cameraNode = SCNNode()
+        cameraNode.camera = SCNCamera()
+        cameraNode.position = SCNVector3(x: 0, y: 5, z: 10)
+        scnScene.rootNode.addChildNode(cameraNode)
+    }
+
+    func setFloor() {
         
-        pipelineDescriptor.vertexFunction = vertexFunction
-        pipelineDescriptor.fragmentFunction = fragmentFunction
-        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        // Create and Add a Floor Node
+        let floorGeometry = SCNFloor()
+        floorGeometry.firstMaterial?.diffuse.contents = UIColor.darkGray
+        scnView.backgroundColor = .darkGray
+        let floorNode = SCNNode(geometry: floorGeometry)
+        scnScene.rootNode.addChildNode(floorNode)
+
+        // Attach a Static Physics Body to the Floor
+        let staticBody = SCNPhysicsBody.static()
+        floorNode.physicsBody = staticBody
+    }
+
+    @objc func addDynamicNode() {
         
-        do {
-            pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
-        } catch let error {
-            NSLog("""
-        Something happened:
-        \(error)
+        // Create and Add a Dynamic Node (Cube)
+        let dynamicNode = SCNNode()
+        let boxGeometry = SCNBox(width: 1.0, height: 1.0, length: 1.0, chamferRadius: 0.0)
+        boxGeometry.firstMaterial?.diffuse.contents = UIColor.blue
+        dynamicNode.geometry = boxGeometry
+        dynamicNode.position = SCNVector3(x: 0, y: 10, z: 0)
+        scnScene.rootNode.addChildNode(dynamicNode)
+
+        // Attach a Dynamic Physics Body to the Cube
+        let dynamicBody = SCNPhysicsBody.dynamic()
+        dynamicBody.restitution = 0.5
+        dynamicNode.physicsBody = dynamicBody
+    }
+
+    func addGestureRecognizer() {
         
-        \(error.localizedDescription)
-        """)
+        // Add Tap Gesture Recognizer
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
+        scnView.addGestureRecognizer(tapGesture)
+    }
+
+    @objc func handleTap(_ gestureRecognize: UIGestureRecognizer) {
+        let location = gestureRecognize.location(in: scnView)
+        let hitResults = scnView.hitTest(location, options: [:])
+
+        if !hitResults.isEmpty {
+            let result = hitResults.first!
+            let node = result.node
+            applyForce(to: node)
+        } else {
+            addDynamicNode()
         }
+    }
+
+    func applyForce(to node: SCNNode) {
+        // Apply Upward Force to the Tapped Node
+        let force = SCNVector3(x: 0, y: 10, z: 0)// Apply force upwards
+        let position = SCNVector3(x: 0, y: 0, z: 0)// Position of the force (center of the node)
+        node.physicsBody?.applyForce(force, at: position, asImpulse: true)
     }
 }
 
+// Metal View Delegate Extension
 extension ViewController: MTKViewDelegate {
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        
-    }
     func draw(in view: MTKView) {
-        guard let drawable = view.currentDrawable,
-              let pipelineState = pipelineState,
-              let descriptor = view.currentRenderPassDescriptor else {
-            return
-        }
-        
-        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
-            NSLog("Could not instantiate Metal command buffer.")
-            return
-        }
-        guard let commandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else {
-            NSLog("Could not instantiate Metal command encoder.")
-            return
-        }
-        time += 2 / Float(view.preferredFramesPerSecond)
-        let animatedBy = abs(sin(time)/2 + 0.5)
-        constant.animatedBy = animatedBy
-        commandEncoder.setRenderPipelineState(pipelineState)
-        commandEncoder.setVertexBuffer(vertexBuffer,
-                                       offset: 0,
-                                       index: 0)
-        
-        commandEncoder.setVertexBytes(&constant, length: MemoryLayout<Constant>.stride, index: 1)
-        commandEncoder.drawPrimitives(type: .triangleStrip,
-                                      vertexStart: 0,
-                                      vertexCount: vertices.count)
-                    commandEncoder.drawIndexedPrimitives(type: .triangle, indexCount: indices.count, indexType: .uint16, indexBuffer: indexBuffer, indexBufferOffset: 0)
-        commandEncoder.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
+        // Metal drawing logic goes here
+        // Use metalCommandQueue to encode and commit rendering commands
     }
-}
 
-struct Constant {
-    var animatedBy: Float = 0.0
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+        // Handle Metal view size changes if needed
+    }
 }
